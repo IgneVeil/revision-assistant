@@ -1,1 +1,15 @@
-pytest>=8.0.0
+# Dev tools
+pytest
+ruff
+
+# Web framework
+fastapi
+uvicorn[standard]
+
+# Database
+sqlalchemy
+psycopg[binary]
+
+# Talking to Ollama + reading files
+httpx
+pypdf
