@@ -1,25 +1,29 @@
 import httpx
 from app.retrieve import retrieve
+from app.metrics import timed
 
 OLLAMA_URL = "http://localhost:11434/api/generate"
 CHAT_MODEL = "llama3.1:8b"
 
 
 def _ask_model(prompt: str) -> str:
-    """Send a prompt to the local chat model and return its text reply."""
-    response = httpx.post(
-        OLLAMA_URL,
-        json={"model": CHAT_MODEL, "prompt": prompt, "stream": False},
-        timeout=120.0,
-    )
-    response.raise_for_status()
-    return response.json()["response"].strip()
+    """Send a prompt to the local chat model and return its text reply, timed."""
+    def _call() -> str:
+        response = httpx.post(
+            OLLAMA_URL,
+            json={"model": CHAT_MODEL, "prompt": prompt, "stream": False},
+            timeout=120.0,
+        )
+        response.raise_for_status()
+        return response.json()["response"].strip()
+
+    return timed("chat_generate", _call)
 
 
 def generate_question(topic: str, difficulty: str = "medium") -> str:
     """Generate a practice question from the notes most relevant to `topic`."""
-    chunks = retrieve(topic, k=3)                          # get relevant notes
-    context = "\n\n".join(c["content"] for c in chunks)    # join them into one block
+    chunks = retrieve(topic, k=3)
+    context = "\n\n".join(c["content"] for c in chunks)
 
     prompt = (
         f"You are a revision tutor. Using ONLY the notes below, write one "
