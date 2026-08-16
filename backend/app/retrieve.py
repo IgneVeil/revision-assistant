@@ -4,8 +4,8 @@ from app.embeddings import embed_text
 DB_URL = "postgresql://revision:revision@localhost:5432/revision"
 
 # Chunks further than this distance are treated as irrelevant and dropped.
-MAX_DISTANCE = 18.0
-
+# Tuned for Gemini embeddings (distances ~0.7-0.9 for relevant chunks).
+MAX_DISTANCE = 0.95
 
 def retrieve(query: str, k: int = 3) -> list[dict]:
     """
