@@ -1,23 +1,45 @@
+import os
 import httpx
+from dotenv import load_dotenv
 from app.retrieve import retrieve
 from app.metrics import timed
 
+load_dotenv()
+
+# Local Ollama settings (used when no Gemini key is set)
 OLLAMA_URL = "http://localhost:11434/api/generate"
-CHAT_MODEL = "llama3.1:8b"
+OLLAMA_CHAT_MODEL = "llama3.1:8b"
+
+# Gemini settings (used when GEMINI_API_KEY is present)
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GEMINI_CHAT_MODEL = "gemini-flash-latest"
+
+
+def _ask_ollama(prompt: str) -> str:
+    response = httpx.post(
+        OLLAMA_URL,
+        json={"model": OLLAMA_CHAT_MODEL, "prompt": prompt, "stream": False},
+        timeout=120.0,
+    )
+    response.raise_for_status()
+    return response.json()["response"].strip()
+
+
+def _ask_gemini(prompt: str) -> str:
+    from google import genai
+    client = genai.Client(api_key=GEMINI_API_KEY)
+    result = client.models.generate_content(
+        model=GEMINI_CHAT_MODEL,
+        contents=prompt,
+    )
+    return result.text.strip()
 
 
 def _ask_model(prompt: str) -> str:
-    """Send a prompt to the local chat model and return its text reply, timed."""
-    def _call() -> str:
-        response = httpx.post(
-            OLLAMA_URL,
-            json={"model": CHAT_MODEL, "prompt": prompt, "stream": False},
-            timeout=120.0,
-        )
-        response.raise_for_status()
-        return response.json()["response"].strip()
-
-    return timed("chat_generate", _call)
+    """Use Gemini if a key is set, otherwise local Ollama. Timed either way."""
+    if GEMINI_API_KEY:
+        return timed("chat_generate", _ask_gemini, prompt)
+    return timed("chat_generate", _ask_ollama, prompt)
 
 
 def generate_question(topic: str, difficulty: str = "medium") -> str:
