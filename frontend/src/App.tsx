@@ -1,9 +1,15 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import "./App.css";
 
 const API = "http://localhost:8000";
 
 function App() {
-  const [topic, setTopic] = useState("photosynthesis");
+  const [documents, setDocuments] = useState<string[]>([]);
+  const [docName, setDocName] = useState("");
+  const [notes, setNotes] = useState("");
+  const [uploadMsg, setUploadMsg] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [topic, setTopic] = useState("");
   const [difficulty, setDifficulty] = useState("medium");
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
@@ -12,12 +18,36 @@ function App() {
   const [loadingQ, setLoadingQ] = useState(false);
   const [loadingM, setLoadingM] = useState(false);
 
+  async function loadDocuments() {
+    try {
+      const res = await fetch(`${API}/documents`);
+      const data = await res.json();
+      setDocuments(data.documents || []);
+    } catch { /* backend down: leave empty */ }
+  }
+
+  useEffect(() => { loadDocuments(); }, []);
+
+  async function uploadNotes() {
+    setUploading(true);
+    setUploadMsg("");
+    try {
+      const res = await fetch(`${API}/ingest`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ document_name: docName, text: notes }),
+      });
+      const data = await res.json();
+      setUploadMsg(`Saved ${data.chunks_stored} chunk(s) from "${docName}".`);
+      setNotes(""); setDocName("");
+      loadDocuments();
+    } catch {
+      setUploadMsg("Something went wrong. Is the backend running?");
+    } finally { setUploading(false); }
+  }
+
   async function getQuestion() {
-    setLoadingQ(true);
-    setQuestion("");
-    setAnswer("");
-    setFeedback("");
-    setSources([]);
+    setLoadingQ(true); setQuestion(""); setAnswer(""); setFeedback(""); setSources([]);
     try {
       const res = await fetch(`${API}/question`, {
         method: "POST",
@@ -28,15 +58,11 @@ function App() {
       setQuestion(data.question);
     } catch {
       setQuestion("Something went wrong. Is the backend running?");
-    } finally {
-      setLoadingQ(false);
-    }
+    } finally { setLoadingQ(false); }
   }
 
   async function submitAnswer() {
-    setLoadingM(true);
-    setFeedback("");
-    setSources([]);
+    setLoadingM(true); setFeedback(""); setSources([]);
     try {
       const res = await fetch(`${API}/mark`, {
         method: "POST",
@@ -48,67 +74,89 @@ function App() {
       setSources(data.sources || []);
     } catch {
       setFeedback("Something went wrong marking your answer.");
-    } finally {
-      setLoadingM(false);
-    }
+    } finally { setLoadingM(false); }
   }
 
   return (
-    <div style={{ maxWidth: 600, margin: "40px auto", fontFamily: "sans-serif" }}>
-      <h1>Revision Assistant</h1>
+    <div className="layout">
+      <aside className="sidebar">
+        <h2>Your notes</h2>
+        {documents.length === 0 && <p className="empty">No notes yet.</p>}
+        {documents.map((d) => (
+          <div
+            key={d}
+            className={`note-item ${topic === d ? "active" : ""}`}
+            onClick={() => setTopic(d)}
+          >
+            {d}
+          </div>
+        ))}
+      </aside>
 
-      <label>Topic: </label>
-      <input value={topic} onChange={(e) => setTopic(e.target.value)} />
+      <main className="main">
+        <div className="container">
+          <h1>Revision Assistant</h1>
+          <p className="subtitle">Add your notes, then generate and answer practice questions grounded in them.</p>
 
-      <label> Difficulty: </label>
-      <select value={difficulty} onChange={(e) => setDifficulty(e.target.value)}>
-        <option value="easy">easy</option>
-        <option value="medium">medium</option>
-        <option value="hard">hard</option>
-      </select>
+          <div className="card">
+            <h2>1. Add your notes</h2>
+            <label>Title</label>
+            <input value={docName} onChange={(e) => setDocName(e.target.value)} placeholder="e.g. Biology Ch3" />
+            <label>Notes</label>
+            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Paste your notes here..." rows={5} />
+            <button onClick={uploadNotes} disabled={uploading || !docName || !notes}>
+              {uploading ? "Saving..." : "Save notes"}
+            </button>
+            {uploadMsg && <p className="msg">{uploadMsg}</p>}
+          </div>
 
-      <br /><br />
-      <button onClick={getQuestion} disabled={loadingQ}>
-        {loadingQ ? "Thinking..." : "Generate question"}
-      </button>
+          <div className="card">
+            <h2>2. Practice</h2>
+            <div className="row">
+              <div>
+                <label>Pick saved notes</label>
+                <select value={topic} onChange={(e) => setTopic(e.target.value)}>
+                  <option value="">-- select --</option>
+                  {documents.map((d) => <option key={d} value={d}>{d}</option>)}
+                </select>
+              </div>
+              <div>
+                <label>Difficulty</label>
+                <select value={difficulty} onChange={(e) => setDifficulty(e.target.value)}>
+                  <option value="easy">easy</option>
+                  <option value="medium">medium</option>
+                  <option value="hard">hard</option>
+                </select>
+              </div>
+            </div>
+            <label>Or type a topic</label>
+            <input value={topic} onChange={(e) => setTopic(e.target.value)} placeholder="e.g. photosynthesis" />
+            <button onClick={getQuestion} disabled={loadingQ || !topic}>
+              {loadingQ ? "Thinking..." : "Generate question"}
+            </button>
 
-      {question && (
-        <div style={{ marginTop: 20 }}>
-          <p style={{ padding: 15, background: "#f0f0f0", borderRadius: 8 }}>
-            {question}
-          </p>
+            {question && (
+              <div style={{ marginTop: 20 }}>
+                <div className="question-box">{question}</div>
+                <label style={{ marginTop: 16 }}>Your answer</label>
+                <textarea value={answer} onChange={(e) => setAnswer(e.target.value)} placeholder="Type your answer..." rows={4} />
+                <button onClick={submitAnswer} disabled={loadingM || !answer}>
+                  {loadingM ? "Marking..." : "Submit answer"}
+                </button>
+              </div>
+            )}
 
-          <textarea
-            value={answer}
-            onChange={(e) => setAnswer(e.target.value)}
-            placeholder="Type your answer here..."
-            rows={4}
-            style={{ width: "100%", boxSizing: "border-box" }}
-          />
+            {feedback && <div className="feedback-box">{feedback}</div>}
 
-          <br /><br />
-          <button onClick={submitAnswer} disabled={loadingM || !answer}>
-            {loadingM ? "Marking..." : "Submit answer"}
-          </button>
+            {sources.length > 0 && (
+              <div className="sources" style={{ marginTop: 20 }}>
+                <h3>Sources from your notes</h3>
+                {sources.map((s, i) => <div key={i} className="source-box">{s}</div>)}
+              </div>
+            )}
+          </div>
         </div>
-      )}
-
-      {feedback && (
-        <p style={{ marginTop: 20, padding: 15, background: "#e8f5e9", borderRadius: 8, whiteSpace: "pre-wrap" }}>
-          {feedback}
-        </p>
-      )}
-
-      {sources.length > 0 && (
-        <div style={{ marginTop: 20 }}>
-          <h3>Sources (from your notes)</h3>
-          {sources.map((s, i) => (
-            <p key={i} style={{ padding: 10, background: "#fff8e1", borderRadius: 8, fontSize: 14 }}>
-              {s}
-            </p>
-          ))}
-        </div>
-      )}
+      </main>
     </div>
   );
 }

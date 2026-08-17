@@ -3,23 +3,21 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from app.config import DB_URL, FRONTEND_ORIGIN
 from app.ingest import ingest_document
 from app.generate import generate_question, mark_answer
 from app.retrieve import retrieve
-
-DB_URL = "postgresql://revision:revision@localhost:5432/revision"
 
 app = FastAPI(title="Revision Assistant API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # allow the frontend to call this API
+    allow_origins=[FRONTEND_ORIGIN],
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
-# These describe what the caller must send in each request.
 class IngestRequest(BaseModel):
     document_name: str
     text: str
@@ -66,8 +64,8 @@ def question(req: QuestionRequest):
 @app.post("/mark")
 def mark(req: MarkRequest):
     feedback = mark_answer(req.question, req.student_answer, req.topic)
-    sources = retrieve(req.topic, k=3)                    # the notes it judged against
+    sources = retrieve(req.topic, k=3)
     return {
         "feedback": feedback,
-        "sources": [s["content"] for s in sources],       # just the text of each chunk
+        "sources": [s["content"] for s in sources],
     }

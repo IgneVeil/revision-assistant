@@ -1,7 +1,6 @@
 import time
 import psycopg
-
-DB_URL = "postgresql://revision:revision@localhost:5432/revision"
+from app.config import DB_URL
 
 
 def log_call(operation: str, duration_ms: float) -> None:
@@ -16,9 +15,9 @@ def log_call(operation: str, duration_ms: float) -> None:
 
 
 def timed(operation: str, func, *args, **kwargs):
-    """Run func, measure how long it took in milliseconds, log it, and return the result."""
-    start = time.perf_counter()                      # start the stopwatch
-    result = func(*args, **kwargs)                   # do the actual work
-    duration_ms = (time.perf_counter() - start) * 1000   # stop, convert to ms
-    log_call(operation, duration_ms)                 # save the timing
+    """Run func, measure how long it took in ms, log it, and return the result."""
+    start = time.perf_counter()
+    result = func(*args, **kwargs)
+    duration_ms = (time.perf_counter() - start) * 1000
+    log_call(operation, duration_ms)
     return result

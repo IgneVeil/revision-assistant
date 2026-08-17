@@ -1,17 +1,14 @@
 import psycopg
+from app.config import DB_URL
 from app.embeddings import embed_text
 
-DB_URL = "postgresql://revision:revision@localhost:5432/revision"
-
 # Chunks further than this distance are treated as irrelevant and dropped.
-# Tuned for Gemini embeddings (distances ~0.7-0.9 for relevant chunks).
+# Tuned for Gemini embeddings (relevant chunks sit around 0.7-0.9).
 MAX_DISTANCE = 0.95
 
+
 def retrieve(query: str, k: int = 3) -> list[dict]:
-    """
-    Find up to k chunks closest in meaning to the query,
-    dropping any that are further away than MAX_DISTANCE.
-    """
+    """Find up to k chunks closest to the query, dropping ones beyond MAX_DISTANCE."""
     query_embedding = embed_text(query)
 
     with psycopg.connect(DB_URL) as conn:
@@ -25,7 +22,6 @@ def retrieve(query: str, k: int = 3) -> list[dict]:
             )
             rows = cur.fetchall()
 
-    # Keep only chunks that are actually close enough to be relevant.
     return [
         {"content": content, "distance": distance}
         for content, distance in rows
