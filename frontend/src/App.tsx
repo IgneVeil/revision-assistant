@@ -1,8 +1,7 @@
 import { useState, useEffect } from "react";
 import "./App.css";
 
-const API = "http://localhost:8000";
-
+const API = const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
 function App() {
   const [documents, setDocuments] = useState<string[]>([]);
   const [docName, setDocName] = useState("");

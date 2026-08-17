@@ -15,3 +15,5 @@ httpx
 pypdf
 
 google-genai
+
+python-dotenv
