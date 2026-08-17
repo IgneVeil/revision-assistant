@@ -34,6 +34,10 @@ class MarkRequest(BaseModel):
     topic: str
 
 
+class DeleteRequest(BaseModel):
+    document_name: str
+
+
 @app.get("/health")
 def health():
     return {"status": "ok"}
@@ -47,6 +51,17 @@ def documents():
             cur.execute("SELECT DISTINCT document FROM chunks ORDER BY document")
             rows = cur.fetchall()
     return {"documents": [r[0] for r in rows]}
+
+
+@app.post("/delete")
+def delete_document(req: DeleteRequest):
+    """Delete all chunks belonging to a document."""
+    with psycopg.connect(DB_URL) as conn:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM chunks WHERE document = %s", (req.document_name,))
+            deleted = cur.rowcount
+        conn.commit()
+    return {"deleted_chunks": deleted}
 
 
 @app.post("/ingest")

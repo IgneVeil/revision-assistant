@@ -28,6 +28,21 @@ function App() {
 
   useEffect(() => { loadDocuments(); }, []);
 
+  async function deleteDocument(name: string) {
+    if (!confirm(`Delete "${name}"?`)) return;
+    try {
+      await fetch(`${API}/delete`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ document_name: name }),
+      });
+      if (topic === name) setTopic("");
+      loadDocuments();
+    } catch {
+      alert("Couldn't delete. Is the backend running?");
+    }
+  }
+
   async function uploadNotes() {
     setUploading(true);
     setUploadMsg("");
@@ -83,12 +98,15 @@ function App() {
         <h2>Your notes</h2>
         {documents.length === 0 && <p className="empty">No notes yet.</p>}
         {documents.map((d) => (
-          <div
-            key={d}
-            className={`note-item ${topic === d ? "active" : ""}`}
-            onClick={() => setTopic(d)}
-          >
-            {d}
+          <div key={d} className={`note-item ${topic === d ? "active" : ""}`}>
+            <span onClick={() => setTopic(d)} style={{ cursor: "pointer", flex: 1 }}>{d}</span>
+            <span
+              onClick={() => deleteDocument(d)}
+              style={{ cursor: "pointer", marginLeft: 8, opacity: 0.6 }}
+              title="Delete"
+            >
+              ✕
+            </span>
           </div>
         ))}
       </aside>
