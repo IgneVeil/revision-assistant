@@ -1,3 +1,4 @@
+import psycopg
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -5,6 +6,8 @@ from pydantic import BaseModel
 from app.ingest import ingest_document
 from app.generate import generate_question, mark_answer
 from app.retrieve import retrieve
+
+DB_URL = "postgresql://revision:revision@localhost:5432/revision"
 
 app = FastAPI(title="Revision Assistant API")
 
@@ -36,6 +39,16 @@ class MarkRequest(BaseModel):
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+@app.get("/documents")
+def documents():
+    """Return the list of distinct saved note titles."""
+    with psycopg.connect(DB_URL) as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT DISTINCT document FROM chunks ORDER BY document")
+            rows = cur.fetchall()
+    return {"documents": [r[0] for r in rows]}
 
 
 @app.post("/ingest")
