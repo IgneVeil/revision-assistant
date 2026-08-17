@@ -1,4 +1,5 @@
 import os
+import time
 import httpx
 from dotenv import load_dotenv
 from app.retrieve import retrieve
@@ -28,11 +29,20 @@ def _ask_ollama(prompt: str) -> str:
 def _ask_gemini(prompt: str) -> str:
     from google import genai
     client = genai.Client(api_key=GEMINI_API_KEY)
-    result = client.models.generate_content(
-        model=GEMINI_CHAT_MODEL,
-        contents=prompt,
-    )
-    return result.text.strip()
+
+    last_error = None
+    for attempt in range(4):                      # try up to 4 times
+        try:
+            result = client.models.generate_content(
+                model=GEMINI_CHAT_MODEL,
+                contents=prompt,
+            )
+            return result.text.strip()
+        except Exception as e:
+            last_error = e
+            time.sleep(2 * (attempt + 1))         # wait 2s, 4s, 6s between tries
+
+    raise last_error                              # all retries failed
 
 
 def _ask_model(prompt: str) -> str:
