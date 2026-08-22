@@ -13,7 +13,7 @@ OLLAMA_CHAT_MODEL = "llama3.1:8b"
 
 # Gemini settings (used when GEMINI_API_KEY is present)
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-GEMINI_CHAT_MODEL = "gemini-2.5-flash"
+GEMINI_CHAT_MODEL = "gemini-3.6-flash"
 
 def _ask_ollama(prompt: str) -> str:
     response = httpx.post(
